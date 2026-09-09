@@ -10,7 +10,7 @@ import { toRestaurant } from '@/lib/types';
 export async function GET() {
   try {
     const { rows } = await pool.query(
-      'SELECT * FROM restaurants ORDER BY createdAt DESC'
+      'SELECT * FROM restaurants ORDER BY created_at DESC'
     );
     // Map every row - raw rows don't match the contract (NUMERIC comes back
     // as a string, timestamps as Date objects). See lib/types.ts.
