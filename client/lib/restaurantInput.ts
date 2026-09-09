@@ -10,12 +10,12 @@ export interface RestaurantInput {
 }
 
 export function parseRestaurantId(value: string): number {
-  if (!/^[1-9]\d*$/.test(value)) {
+  if (!/^\d+$/.test(value)) {
     throw new ApiError(404, 'Restaurant not found');
   }
 
   const id = Number(value);
-  if (!Number.isSafeInteger(id) || id > POSTGRES_INTEGER_MAX) {
+  if (!Number.isSafeInteger(id) || id <= 0 || id > POSTGRES_INTEGER_MAX) {
     throw new ApiError(404, 'Restaurant not found');
   }
 
@@ -33,7 +33,17 @@ function optionalString(value: unknown, field: string): string | null {
   return trimmed === '' ? null : trimmed;
 }
 
-export function parseRestaurantInput(value: unknown): RestaurantInput {
+export async function parseRestaurantInput(
+  request: Request
+): Promise<RestaurantInput> {
+  let value: unknown;
+
+  try {
+    value = await request.json();
+  } catch {
+    throw new ApiError(400, 'Request body must contain valid JSON');
+  }
+
   if (typeof value !== 'object' || value === null || Array.isArray(value)) {
     throw new ApiError(400, 'Request body must be a JSON object');
   }

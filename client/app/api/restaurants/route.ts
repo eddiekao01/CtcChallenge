@@ -27,8 +27,7 @@ export async function GET() {
  */
 export async function POST(req: Request) {
   try {
-    const body = await req.json();
-    const input = parseRestaurantInput(body);
+    const input = await parseRestaurantInput(req);
     const { rows } = await pool.query(
       `INSERT INTO restaurants (name, cuisine, address, rating)
        VALUES ($1, $2, $3, $4)

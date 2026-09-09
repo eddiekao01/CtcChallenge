@@ -38,8 +38,7 @@ export async function GET(_req: Request, { params }: Params) {
 export async function PUT(req: Request, { params }: Params) {
   try {
     const id = parseRestaurantId(params.id);
-    const body = await req.json();
-    const input = parseRestaurantInput(body);
+    const input = await parseRestaurantInput(req);
     const { rows } = await pool.query(
       `UPDATE restaurants
        SET name = $2, cuisine = $3, address = $4, rating = $5

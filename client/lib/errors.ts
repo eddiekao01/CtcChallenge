@@ -23,20 +23,13 @@ export class ApiError extends Error {
  *     return handleError(err);
  *   }
  *
- * Expected API errors keep their safe message and status. Malformed JSON is a
- * 400. Unexpected failures are logged on the server and return a generic 500
- * without exposing internal details.
+ * Expected API errors keep their safe message and status. Unexpected failures
+ * are logged on the server and return a generic 500 without exposing internal
+ * details.
  */
 export function handleError(err: unknown): NextResponse {
   if (err instanceof ApiError) {
     return NextResponse.json({ error: err.message }, { status: err.status });
-  }
-
-  if (err instanceof SyntaxError) {
-    return NextResponse.json(
-      { error: 'Request body must contain valid JSON' },
-      { status: 400 }
-    );
   }
 
   if (err instanceof DatabaseError) {

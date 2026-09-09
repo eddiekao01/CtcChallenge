@@ -9,12 +9,14 @@ import {
 
 test('accepts positive PostgreSQL integer restaurant IDs', () => {
   assert.equal(parseRestaurantId('1'), 1);
+  assert.equal(parseRestaurantId('0001'), 1);
   assert.equal(parseRestaurantId('2147483647'), 2_147_483_647);
 });
 
 const invalidIds = [
   'abc',
   '0',
+  '0000',
   '-1',
   '1.5',
   '1e2',
@@ -23,6 +25,22 @@ const invalidIds = [
   '+7',
   '2147483648',
 ];
+
+function jsonRequest(value: unknown): Request {
+  return new Request('http://localhost/api/restaurants', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(value),
+  });
+}
+
+function rawRequest(body: string): Request {
+  return new Request('http://localhost/api/restaurants', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body,
+  });
+}
 
 for (const id of invalidIds) {
   test(`rejects invalid restaurant ID ${JSON.stringify(id)} with 404`, () => {
@@ -33,16 +51,18 @@ for (const id of invalidIds) {
   });
 }
 
-test('normalizes a valid restaurant body', () => {
+test('normalizes a valid restaurant body', async () => {
   assert.deepEqual(
-    parseRestaurantInput({
-      name: '  Valid Spot  ',
-      cuisine: '  Japanese  ',
-      address: '',
-      rating: 4.5,
-      id: 999,
-      createdAt: 'not trusted',
-    }),
+    await parseRestaurantInput(
+      jsonRequest({
+        name: '  Valid Spot  ',
+        cuisine: '  Japanese  ',
+        address: '',
+        rating: 4.5,
+        id: 999,
+        createdAt: 'not trusted',
+      })
+    ),
     {
       name: 'Valid Spot',
       cuisine: 'Japanese',
@@ -52,13 +72,16 @@ test('normalizes a valid restaurant body', () => {
   );
 });
 
-test('defaults omitted optional fields to null', () => {
-  assert.deepEqual(parseRestaurantInput({ name: 'Valid Spot' }), {
-    name: 'Valid Spot',
-    cuisine: null,
-    address: null,
-    rating: null,
-  });
+test('defaults omitted optional fields to null', async () => {
+  assert.deepEqual(
+    await parseRestaurantInput(jsonRequest({ name: 'Valid Spot' })),
+    {
+      name: 'Valid Spot',
+      cuisine: null,
+      address: null,
+      rating: null,
+    }
+  );
 });
 
 const invalidBodies: Array<[string, unknown]> = [
@@ -72,25 +95,35 @@ const invalidBodies: Array<[string, unknown]> = [
   ['a numeric-string rating', { name: 'Valid Spot', rating: '4.5' }],
   ['a rating below zero', { name: 'Valid Spot', rating: -0.1 }],
   ['a rating above five', { name: 'Valid Spot', rating: 5.1 }],
-  ['an infinite rating', { name: 'Valid Spot', rating: Infinity }],
 ];
 
 for (const [description, body] of invalidBodies) {
-  test(`rejects ${description} with a 400 API error`, () => {
-    assert.throws(
-      () => parseRestaurantInput(body),
+  test(`rejects ${description} with a 400 API error`, async () => {
+    await assert.rejects(
+      () => parseRestaurantInput(jsonRequest(body)),
       (err: unknown) => err instanceof ApiError && err.status === 400
     );
   });
 }
 
-test('maps malformed JSON syntax errors to a safe 400 response', async () => {
-  const response = handleError(new SyntaxError('internal parser detail'));
+test('rejects malformed JSON with a safe 400 API error', async () => {
+  await assert.rejects(
+    () => parseRestaurantInput(rawRequest('{"name":')),
+    (err: unknown) =>
+      err instanceof ApiError &&
+      err.status === 400 &&
+      err.message === 'Request body must contain valid JSON'
+  );
+});
 
-  assert.equal(response.status, 400);
-  assert.deepEqual(await response.json(), {
-    error: 'Request body must contain valid JSON',
-  });
+test('rejects a JSON number that overflows to infinity', async () => {
+  await assert.rejects(
+    () =>
+      parseRestaurantInput(
+        rawRequest('{"name":"Valid Spot","rating":1e309}')
+      ),
+    (err: unknown) => err instanceof ApiError && err.status === 400
+  );
 });
 
 for (const [code, message] of [
@@ -109,13 +142,13 @@ for (const [code, message] of [
   });
 }
 
-test('logs unexpected errors and returns a generic 500 response', async () => {
+test('treats an unrelated SyntaxError as an unexpected 500', async () => {
   const originalConsoleError = console.error;
   const logged: unknown[][] = [];
   console.error = (...args: unknown[]) => logged.push(args);
 
   try {
-    const response = handleError(new Error('sensitive internal failure'));
+    const response = handleError(new SyntaxError('sensitive internal failure'));
 
     assert.equal(response.status, 500);
     assert.deepEqual(await response.json(), {
