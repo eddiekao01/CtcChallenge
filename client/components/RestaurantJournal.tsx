@@ -485,7 +485,7 @@ export function RestaurantJournal({
               onClick={openNewRestaurant}
               className="rounded-lg border border-stone-200 px-3 py-2 text-xs font-bold text-stone-700 transition hover:border-orange-300 hover:bg-orange-50 hover:text-orange-800"
             >
-              + Add place
+              + I want to go!
             </button>
           </div>
 
@@ -532,7 +532,7 @@ export function RestaurantJournal({
                   </div>
                   <p className="mt-2 text-xs font-semibold text-stone-500">
                     {restaurantVisits.length === 0
-                      ? 'Uncharted territory'
+                      ? 'I want to go!'
                       : `${restaurantVisits.length} review${
                           restaurantVisits.length === 1 ? '' : 's'
                         } · ${money(
