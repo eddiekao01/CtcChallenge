@@ -49,13 +49,13 @@ feed. Then edit that review and try malformed requests against the routes below.
 
 ## Part B: routes
 
-| Method and path | What it does | Success | Errors |
-| --- | --- | --- | --- |
-| `GET /api/visits` | Lists visits, newest first. Optional `?restaurantId=1`. | `200` + visit array | `400` for an invalid filter |
-| `GET /api/visits/:id` | Reads one visit. | `200` + visit | `404` for a missing or invalid ID |
-| `POST /api/visits` | Adds a visit to an existing restaurant, or atomically creates/reuses a restaurant and adds its first visit. | `201` + creation result | `400` invalid body; `404` missing restaurant; `409` conflict |
-| `PUT /api/visits/:id` | Replaces a visit's date, amount, rating, and notes. | `200` + visit | `400` invalid body; `404` missing/invalid ID |
-| `DELETE /api/visits/:id` | Deletes one visit. | `204`, no body | `404` missing/invalid ID |
+| Method and path          | What it does                                                                                  | Success                 | Errors                                                           |
+| ------------------------ | --------------------------------------------------------------------------------------------- | ----------------------- | ---------------------------------------------------------------- |
+| `GET /api/visits`        | Lists visits newest first.<br>Optionally filters by `?restaurantId=1`.                        | `200` + visit array     | `400` for an invalid `restaurantId`                              |
+| `GET /api/visits/:id`    | Returns one visit.                                                                            | `200` + visit           | `404` for a missing or invalid ID                                |
+| `POST /api/visits`       | Adds a visit to an existing restaurant.<br>It can atomically create/reuse a restaurant first. | `201` + creation result | `400` invalid body<br>`404` missing restaurant<br>`409` conflict |
+| `PUT /api/visits/:id`    | Replaces the visit's date, amount,<br>rating, and notes.                                      | `200` + updated visit   | `400` invalid body<br>`404` missing or invalid ID                |
+| `DELETE /api/visits/:id` | Deletes one visit/review.                                                                     | `204`, no response body | `404` for a missing or invalid ID                                |
 
 A visit response has this shape:
 
@@ -127,14 +127,13 @@ reuses an existing restaurant.
 
 ## Schema changes
 
-- `002_prevent_duplicate_restaurants.sql` adds a case-insensitive unique restaurant
-  identity on name plus normalized address. Migration 002 checks for existing
-  duplicates first and raises a clear error rather than silently discarding data.
-- `003_add_visit_rating.sql` adds `visits.rating NUMERIC(2,1)`, constrains it to
-  `0–5`, and backfills seeded visits from their restaurant rating. Both new
-  migrations are re-runnable through `npm run migrate`.
-- No extra setup is required beyond `./setup.sh`; its migration runner discovers
-  the new files automatically.
+| Migration                               | Schema change                                                                             | Reason                                                                                          |
+| --------------------------------------- | ----------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| `002_prevent_duplicate_restaurants.sql` | Adds a case-insensitive unique index on<br>`LOWER(name)` and normalized `LOWER(address)`. | Prevents duplicate restaurants at the same address,<br>including during concurrent requests.    |
+| `003_add_visit_rating.sql`              | Adds `visits.rating NUMERIC(2,1)` with a<br>`0–5` check and backfills existing visits.    | Lets each visit act as a review with its own rating<br>while preserving the seeded review data. |
+
+No extra setup is required. `./setup.sh` runs the migration runner, which
+discovers and applies both files automatically.
 
 ## How I verified this
 
