@@ -1,5 +1,17 @@
 import { NextResponse } from 'next/server';
 
+type ApiErrorStatus = 400 | 404 | 409;
+
+export class ApiError extends Error {
+  constructor(
+    public readonly status: ApiErrorStatus,
+    message: string
+  ) {
+    super(message);
+    this.name = 'ApiError';
+  }
+}
+
 /**
  * Central error -> HTTP response mapper for the API route handlers. Call it
  * from a route's `catch` block so error handling lives in one place:
@@ -21,6 +33,17 @@ import { NextResponse } from 'next/server';
  * TODO (A3): avoid leaking internal error details in responses
  */
 export function handleError(err: unknown): NextResponse {
+  if (err instanceof ApiError) {
+    return NextResponse.json({ error: err.message }, { status: err.status });
+  }
+
+  if (err instanceof SyntaxError) {
+    return NextResponse.json(
+      { error: 'Request body must contain valid JSON' },
+      { status: 400 }
+    );
+  }
+
   console.error('Unhandled API error:', err);
 
   return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
