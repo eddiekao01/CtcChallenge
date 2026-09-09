@@ -1,61 +1,55 @@
 # Write-up
 
+> This is the skeleton - replace everything in blockquotes with your own words
+> and delete the prompts as you go. Aim for **~300 words** across the four
+> questions; the route reference below can be as long as it needs to be.
+>
+> Write it like you're handing the work to a teammate. We'd rather read an
+> honest "I ran out of time on X and here's what I'd do" than a polished list of
+> accomplishments. **Submit this even if you didn't finish** - see CHALLENGE.md.
+
 ## 1. What did you build for Part B, and why that?
 
-I turned the starter list into Brennen's restaurant journal: a small, original
-Yelp-inspired interface where he can search restaurants, log meals, attach a
-rating and review, and see spending totals and visit history. Reviews are not a
-second, disconnected concept—a visit is the review and receipt record. That fit
-the existing schema and the product's core question, “where did Brennen eat and
-how much did he spend?”, while making the seeded data genuinely useful.
+> What made you pick it over everything else you could have built? This is the
+> question we care most about - the _why_ matters more than the _what_.
 
-The most important flow is logging a first visit to a new restaurant. One API
-request creates or reuses the restaurant and creates its visit in a database
-transaction, so a failure cannot leave a restaurant with no corresponding
-review. A normalized database uniqueness index and an atomic upsert also make
-simultaneous submissions converge on one restaurant.
+So when I was coding the challenge, the thing that keep sticking out into my eye is the fact that there aren't any buttons in the UI. I mean we can't assume every user will open the terminal and start hitting curl for the HTTP requests, a successful product doesn't do that. For other programmers, the code has to be readable; similarly, for users, the interface has to be usable, every function, every API call that is not in the interface would eventually go to waste.
+
+Thus, I decided to make everything in the codebase useful, while making the experience of the app intuitive. I didn't grew up here, but I imagine the most intuitive food rating app would be something like yelp, which is review-based (you don't add the restaurant, you add reviews). And it really isn't that difficult, since the original type already have an interface of visit, by adding a note (review) field too it and recalling some of the functions, we can basically make the app review-based.
 
 ## 2. What did you decide, and what did you rule out?
 
-I kept the fixed Part A restaurant API intact and added a focused `/api/visits`
-resource. The UI talks only to route handlers; it never imports the database.
-Each route validates unknown JSON before querying, uses parameterized SQL, maps
-Postgres values into the documented JSON types, and sends unexpected failures
-through the shared safe error handler.
+> Route shapes, data model, where the logic lives, what you deliberately didn't do. Name a tradeoff you're not sure you got right.
 
-I deliberately did not add authentication, images, social profiles, pagination,
-or a separate reviews table. Those could be useful, but they would dilute a
-finished single-user journal. I also chose full replacement semantics for visit
-`PUT`, matching the restaurant API, rather than introducing PATCH semantics.
+I defined the case insensitive combination of the name and address of the restaurant as unique identifiers, because it is an nearly impossible scenario to have two restaurants of nearly the same name and address. It couldn't be two branches nor can it be a legacy store and the current store. This avoids the scenarios of for example Sakura House and sakura house being two different entries in the app, not counting for the same rating and reviews. I applied a migration so the db enforces these rules, so concurrent requests are considered for too. However, there is an imperfection related with address. Since address can be written and formatted in many different ways, 12 Main St and 12 Main Street would give different locations. If I had more time I would implement a more complete address matching.
 
 ## 3. Where did you cut corners?
 
-The interface uses browser confirmation dialogs for destructive actions and
-simple modal behavior rather than a full accessible dialog/focus-trap library.
-With another day I would add database-backed integration tests to CI and cursor
-pagination for a much larger visit history. I would also decide whether a
-restaurant's manually entered overall rating should coexist with or be fully
-replaced by its average visit rating; the UI currently prefers the visit average
-when reviews exist.
+> What would you fix first with another day?
 
-## 4. What should we look at first?
-
-Start with **Write a review → New restaurant**. It demonstrates the full slice:
-validated UI input, one transactional HTTP request, duplicate-safe restaurant
-creation, a persisted review, and immediate updates to totals and the review
-feed. Then edit that review and try malformed requests against the routes below.
+Currently, data is fetched from the db when the page loads. At runtime, successful changes are saved to the database, but only the current browser’s in-memory state is re-rendered. Other open browsers do not fetch and render those changes until they refresh. Thus, if Brennen wants to see a change he made from another device or one made by his girlfriend, he would have to refresh. If I could change anything, the one I would change first is to add cache revalidation or a client-side data-fetching layer that automatically fetches every few seconds, so that the page remains synchronized with the SQL database even when Brennen edits on his phone and his laptop across different visits.
 
 ---
 
 ## Part B: routes
 
-| Method and path          | What it does                                                                                  | Success                 | Errors                                                           |
-| ------------------------ | --------------------------------------------------------------------------------------------- | ----------------------- | ---------------------------------------------------------------- |
-| `GET /api/visits`        | Lists visits newest first.<br>Optionally filters by `?restaurantId=1`.                        | `200` + visit array     | `400` for an invalid `restaurantId`                              |
-| `GET /api/visits/:id`    | Returns one visit.                                                                            | `200` + visit           | `404` for a missing or invalid ID                                |
-| `POST /api/visits`       | Adds a visit to an existing restaurant.<br>It can atomically create/reuse a restaurant first. | `201` + creation result | `400` invalid body<br>`404` missing restaurant<br>`409` conflict |
-| `PUT /api/visits/:id`    | Replaces the visit's date, amount,<br>rating, and notes.                                      | `200` + updated visit   | `400` invalid body<br>`404` missing or invalid ID                |
-| `DELETE /api/visits/:id` | Deletes one visit/review.                                                                     | `204`, no response body | `404` for a missing or invalid ID                                |
+| Method and path          | What it does                                                                                  | Success                 |
+| ------------------------ | --------------------------------------------------------------------------------------------- | ----------------------- |
+| `GET /api/visits`        | Lists visits newest first.<br>Optionally filters by `?restaurantId=1`.                        | `200` + visit array     |
+| `GET /api/visits/:id`    | Returns one visit.                                                                            | `200` + visit           |
+| `POST /api/visits`       | Adds a visit to an existing restaurant.<br>It can atomically create/reuse a restaurant first. | `201` + creation result |
+| `PUT /api/visits/:id`    | Replaces the visit's date, amount,<br>rating, and notes.                                      | `200` + updated visit   |
+| `DELETE /api/visits/:id` | Deletes one visit/review.                                                                     | `204`, no response body |
+
+### Error behavior
+
+| Method and path          | Errors                                                                                  |
+| ------------------------ | --------------------------------------------------------------------------------------- |
+| `GET /api/visits`        | `400` — invalid `restaurantId`                                                          |
+| `GET /api/visits/:id`    | `404` — missing or invalid ID                                                           |
+| `POST /api/visits`       | `400` — invalid body<br><br>`404` — missing restaurant<br><br>`409` — database conflict |
+| `PUT /api/visits/:id`    | `400` — invalid body<br><br>`404` — missing or invalid ID                               |
+| `DELETE /api/visits/:id` | `404` — missing or invalid ID                                                           |
 
 A visit response has this shape:
 
@@ -177,8 +171,5 @@ recalculate.
 
 ## Known issues / what I'd do next
 
-There are no known broken challenge flows. This remains intentionally a
-single-user journal with an in-memory client view after initial load; concurrent
-changes made in another tab appear after refresh. At larger scale I would add
-authentication, pagination, cache revalidation, accessible focus trapping, and
-an automated database integration job.
+> Anything broken, unfinished, or that you know is wrong. Being upfront here
+> costs you nothing and tells us a lot.
