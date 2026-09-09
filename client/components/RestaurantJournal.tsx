@@ -165,7 +165,6 @@ export function RestaurantJournal({
   );
   const [search, setSearch] = useState('');
   const [restaurantModalOpen, setRestaurantModalOpen] = useState(false);
-  const [editingRestaurantId, setEditingRestaurantId] = useState<number | null>(null);
   const [restaurantForm, setRestaurantForm] = useState(emptyRestaurantForm);
   const [visitModalOpen, setVisitModalOpen] = useState(false);
   const [editingVisitId, setEditingVisitId] = useState<number | null>(null);
@@ -230,20 +229,7 @@ export function RestaurantJournal({
   }
 
   function openNewRestaurant() {
-    setEditingRestaurantId(null);
     setRestaurantForm(emptyRestaurantForm);
-    setError(null);
-    setRestaurantModalOpen(true);
-  }
-
-  function openEditRestaurant(restaurant: Restaurant) {
-    setEditingRestaurantId(restaurant.id);
-    setRestaurantForm({
-      name: restaurant.name,
-      cuisine: restaurant.cuisine ?? '',
-      address: restaurant.address ?? '',
-      rating: restaurant.rating === null ? '' : String(restaurant.rating),
-    });
     setError(null);
     setRestaurantModalOpen(true);
   }
@@ -260,26 +246,16 @@ export function RestaurantJournal({
         rating:
           restaurantForm.rating === '' ? null : Number(restaurantForm.rating),
       };
-      const editing = editingRestaurantId !== null;
-      const restaurant = await requestJson<Restaurant>(
-        editing
-          ? `/api/restaurants/${editingRestaurantId}`
-          : '/api/restaurants',
-        {
-          method: editing ? 'PUT' : 'POST',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify(payload),
-        }
-      );
+      const restaurant = await requestJson<Restaurant>('/api/restaurants', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
 
-      setRestaurants((current) =>
-        editing
-          ? current.map((item) => (item.id === restaurant.id ? restaurant : item))
-          : [restaurant, ...current]
-      );
+      setRestaurants((current) => [restaurant, ...current]);
       setSelectedRestaurantId(restaurant.id);
       setRestaurantModalOpen(false);
-      showNotice(editing ? 'Restaurant updated.' : 'Restaurant added to the list.');
+      showNotice('Restaurant added to the list.');
     } catch (error) {
       showError(error);
     } finally {
@@ -592,13 +568,6 @@ export function RestaurantJournal({
                     </button>
                     <button
                       type="button"
-                      onClick={() => openEditRestaurant(selectedRestaurant)}
-                      className="rounded-lg border border-stone-200 px-3 py-2 text-xs font-bold text-stone-600 hover:bg-stone-50"
-                    >
-                      Edit
-                    </button>
-                    <button
-                      type="button"
                       disabled={busy}
                       onClick={() => deleteRestaurant(selectedRestaurant)}
                       className="rounded-lg border border-stone-200 px-3 py-2 text-xs font-bold text-stone-500 hover:border-red-200 hover:bg-red-50 hover:text-red-700 disabled:opacity-50"
@@ -706,7 +675,7 @@ export function RestaurantJournal({
 
       {restaurantModalOpen && (
         <Modal
-          title={editingRestaurantId ? 'Edit restaurant' : 'Add a restaurant'}
+          title="Add a restaurant"
           subtitle="Give Brennen somewhere new to judge."
           onClose={() => !busy && setRestaurantModalOpen(false)}
         >
@@ -772,7 +741,7 @@ export function RestaurantJournal({
             </Field>
             <ModalActions
               busy={busy}
-              submitLabel={editingRestaurantId ? 'Save changes' : 'Add restaurant'}
+              submitLabel="Add restaurant"
               onCancel={() => setRestaurantModalOpen(false)}
             />
           </form>
