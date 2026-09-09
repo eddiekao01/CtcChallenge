@@ -483,7 +483,7 @@ export function RestaurantJournal({
             <button
               type="button"
               onClick={openNewRestaurant}
-              className="rounded-lg border border-stone-200 px-3 py-2 text-xs font-bold text-stone-700 transition hover:border-orange-300 hover:bg-orange-50 hover:text-orange-800"
+              className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-800 transition hover:border-amber-400 hover:bg-amber-100 hover:text-amber-900"
             >
               + I want to go!
             </button>
@@ -530,7 +530,13 @@ export function RestaurantJournal({
                     </div>
                     {rating !== null && <Stars rating={rating} compact />}
                   </div>
-                  <p className="mt-2 text-xs font-semibold text-stone-500">
+                  <p
+                    className={`mt-2 text-xs font-semibold ${
+                      restaurantVisits.length === 0
+                        ? 'text-amber-700'
+                        : 'text-stone-500'
+                    }`}
+                  >
                     {restaurantVisits.length === 0
                       ? 'I want to go!'
                       : `${restaurantVisits.length} review${
