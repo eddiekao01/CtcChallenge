@@ -432,7 +432,7 @@ export function RestaurantJournal({
             onClick={() => openNewVisit()}
             className="rounded-xl bg-[#f4512c] px-5 py-3 text-sm font-black text-white shadow-lg shadow-orange-950/30 transition hover:-translate-y-0.5 hover:bg-[#dc3f1d] focus:outline-none focus:ring-2 focus:ring-orange-300 focus:ring-offset-2 focus:ring-offset-stone-950"
           >
-            + Log a meal
+            + Write a review
           </button>
         </div>
       </section>
@@ -690,7 +690,7 @@ export function RestaurantJournal({
                   The list is empty.
                 </h3>
                 <p className="mt-1 text-sm text-stone-500">
-                  Add a restaurant or log a meal to begin.
+                  Add a restaurant or write a review to begin.
                 </p>
               </div>
             </div>
@@ -775,7 +775,7 @@ export function RestaurantJournal({
 
       {visitModalOpen && (
         <Modal
-          title={editingVisitId ? 'Edit review' : 'Log a meal'}
+          title={editingVisitId ? 'Edit review' : 'Write a review'}
           subtitle="The stars are subjective. The receipt is not."
           onClose={() => !busy && setVisitModalOpen(false)}
         >

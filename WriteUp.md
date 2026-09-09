@@ -40,7 +40,7 @@ when reviews exist.
 
 ## 4. What should we look at first?
 
-Start with **Log a meal → New restaurant**. It demonstrates the full slice:
+Start with **Write a review → New restaurant**. It demonstrates the full slice:
 validated UI input, one transactional HTTP request, duplicate-safe restaurant
 creation, a persisted review, and immediate updates to totals and the review
 feed. Then edit that review and try malformed requests against the routes below.
