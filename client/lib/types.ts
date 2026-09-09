@@ -42,9 +42,17 @@ export interface Visit {
   /** Calendar date, "YYYY-MM-DD". No time, no timezone. */
   date: string;
   amountSpent: number | null;
+  /** Brennen's score for this visit, from 0-5. */
+  rating: number | null;
   notes: string | null;
   /** ISO 8601 timestamp. */
   createdAt: string;
+}
+
+export interface VisitCreationResult {
+  visit: Visit;
+  restaurant: Restaurant;
+  restaurantCreated: boolean;
 }
 
 // --- row mappers -------------------------------------------------------------
@@ -91,7 +99,8 @@ export function toVisit(row: Record<string, unknown>): Visit {
     restaurantId: Number(row.restaurantId),
     date: dateOnly(row.date),
     amountSpent: num(row.amountSpent),
+    rating: num(row.rating),
     notes: (row.notes as string | null) ?? null,
-    createdAt: isoTimestamp(row.createdAt),
+    createdAt: isoTimestamp(row.created_at),
   };
 }

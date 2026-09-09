@@ -9,17 +9,60 @@ import { pool } from './pool';
  */
 
 const restaurants = [
-  { name: 'The Rusty Spoon', cuisine: 'American', address: '12 Main St', rating: 4.5 },
-  { name: 'Sakura House', cuisine: 'Japanese', address: '88 Cherry Ln', rating: 4.8 },
-  { name: 'Bella Napoli', cuisine: 'Italian', address: '301 Olive Ave', rating: 4.2 },
-  { name: 'El Fuego', cuisine: 'Mexican', address: '47 Sol Blvd', rating: 4.6 },
-  { name: 'Green Bowl', cuisine: 'Vegetarian', address: '5 Garden Way', rating: 3.9 },
+  {
+    name: 'The Rusty Spoon',
+    cuisine: 'American',
+    address: '12 Main St',
+    rating: 4.5,
+  },
+  {
+    name: 'Sakura House',
+    cuisine: 'Japanese',
+    address: '88 Cherry Ln',
+    rating: 4.8,
+  },
+  {
+    name: 'Bella Napoli',
+    cuisine: 'Italian',
+    address: '301 Olive Ave',
+    rating: 4.2,
+  },
+  {
+    name: 'El Fuego',
+    cuisine: 'Mexican',
+    address: '47 Sol Blvd',
+    rating: 4.6,
+  },
+  {
+    name: 'Green Bowl',
+    cuisine: 'Vegetarian',
+    address: '5 Garden Way',
+    rating: 3.9,
+  },
 ];
 
 const visits = [
-  { restaurantIndex: 0, date: '2026-01-12', amountSpent: 42.5, notes: 'Burger night with the crew.' },
-  { restaurantIndex: 1, date: '2026-02-03', amountSpent: 88.0, notes: 'Omakase. Worth every penny.' },
-  { restaurantIndex: 3, date: '2026-03-21', amountSpent: 31.75, notes: 'Tacos to go.' },
+  {
+    restaurantIndex: 0,
+    date: '2026-01-12',
+    amountSpent: 42.5,
+    rating: 4.5,
+    notes: 'Burger night with the crew.',
+  },
+  {
+    restaurantIndex: 1,
+    date: '2026-02-03',
+    amountSpent: 88.0,
+    rating: 4.8,
+    notes: 'Omakase. Worth every penny.',
+  },
+  {
+    restaurantIndex: 3,
+    date: '2026-03-21',
+    amountSpent: 31.75,
+    rating: 4.6,
+    notes: 'Tacos to go.',
+  },
 ];
 
 async function seed(): Promise<void> {
@@ -43,9 +86,15 @@ async function seed(): Promise<void> {
 
     for (const v of visits) {
       await client.query(
-        `INSERT INTO visits ("restaurantId", date, "amountSpent", notes)
-         VALUES ($1, $2, $3, $4)`,
-        [restaurantIds[v.restaurantIndex], v.date, v.amountSpent, v.notes]
+        `INSERT INTO visits ("restaurantId", date, "amountSpent", rating, notes)
+         VALUES ($1, $2, $3, $4, $5)`,
+        [
+          restaurantIds[v.restaurantIndex],
+          v.date,
+          v.amountSpent,
+          v.rating,
+          v.notes,
+        ]
       );
     }
 

@@ -1,85 +1,185 @@
 # Write-up
 
-> This is the skeleton - replace everything in blockquotes with your own words
-> and delete the prompts as you go. Aim for **~300 words** across the four
-> questions; the route reference below can be as long as it needs to be.
->
-> Write it like you're handing the work to a teammate. We'd rather read an
-> honest "I ran out of time on X and here's what I'd do" than a polished list of
-> accomplishments. **Submit this even if you didn't finish** - see CHALLENGE.md.
-
 ## 1. What did you build for Part B, and why that?
 
-> What made you pick it over everything else you could have built? This is the
-> question we care most about - the _why_ matters more than the _what_.
+I turned the starter list into Brennen's restaurant journal: a small, original
+Yelp-inspired interface where he can search restaurants, log meals, attach a
+rating and review, and see spending totals and visit history. Reviews are not a
+second, disconnected concept—a visit is the review and receipt record. That fit
+the existing schema and the product's core question, “where did Brennen eat and
+how much did he spend?”, while making the seeded data genuinely useful.
+
+The most important flow is logging a first visit to a new restaurant. One API
+request creates or reuses the restaurant and creates its visit in a database
+transaction, so a failure cannot leave a restaurant with no corresponding
+review. A normalized database uniqueness index and an atomic upsert also make
+simultaneous submissions converge on one restaurant.
 
 ## 2. What did you decide, and what did you rule out?
 
-> Route shapes, data model, where the logic lives, what you deliberately didn't
-> do. Name a tradeoff you're not sure you got right.
+I kept the fixed Part A restaurant API intact and added a focused `/api/visits`
+resource. The UI talks only to route handlers; it never imports the database.
+Each route validates unknown JSON before querying, uses parameterized SQL, maps
+Postgres values into the documented JSON types, and sends unexpected failures
+through the shared safe error handler.
+
+I deliberately did not add authentication, images, social profiles, pagination,
+or a separate reviews table. Those could be useful, but they would dilute a
+finished single-user journal. I also chose full replacement semantics for visit
+`PUT`, matching the restaurant API, rather than introducing PATCH semantics.
 
 ## 3. Where did you cut corners?
 
-> What would you fix first with another day?
+The interface uses browser confirmation dialogs for destructive actions and
+simple modal behavior rather than a full accessible dialog/focus-trap library.
+With another day I would add database-backed integration tests to CI and cursor
+pagination for a much larger visit history. I would also decide whether a
+restaurant's manually entered overall rating should coexist with or be fully
+replaced by its average visit rating; the UI currently prefers the visit average
+when reviews exist.
+
+## 4. What should we look at first?
+
+Start with **Log a meal → New restaurant**. It demonstrates the full slice:
+validated UI input, one transactional HTTP request, duplicate-safe restaurant
+creation, a persisted review, and immediate updates to totals and the review
+feed. Then edit that review and try malformed requests against the routes below.
 
 ---
 
 ## Part B: routes
 
-> Every endpoint you added, with its request and response shapes, so we can
-> exercise it without reverse-engineering your code. Add or remove rows as
-> needed; delete this section if your Part B added no routes.
+| Method and path | What it does | Success | Errors |
+| --- | --- | --- | --- |
+| `GET /api/visits` | Lists visits, newest first. Optional `?restaurantId=1`. | `200` + visit array | `400` for an invalid filter |
+| `GET /api/visits/:id` | Reads one visit. | `200` + visit | `404` for a missing or invalid ID |
+| `POST /api/visits` | Adds a visit to an existing restaurant, or atomically creates/reuses a restaurant and adds its first visit. | `201` + creation result | `400` invalid body; `404` missing restaurant; `409` conflict |
+| `PUT /api/visits/:id` | Replaces a visit's date, amount, rating, and notes. | `200` + visit | `400` invalid body; `404` missing/invalid ID |
+| `DELETE /api/visits/:id` | Deletes one visit. | `204`, no body | `404` missing/invalid ID |
 
-| Method and path | What it does | Success | Errors       |
-| --------------- | ------------ | ------- | ------------ |
-| `GET /api/...`  |              | `200` + | `404` if ... |
-| `POST /api/...` |              | `201` + | `400` on ... |
+A visit response has this shape:
 
-**`POST /api/...`**
+```json
+{
+  "id": 4,
+  "restaurantId": 1,
+  "date": "2026-09-09",
+  "amountSpent": 27.45,
+  "rating": 4.5,
+  "notes": "Would return.",
+  "createdAt": "2026-09-09T19:30:00.000Z"
+}
+```
 
-```jsonc
-// request
-{ }
+`POST /api/visits` accepts either an existing restaurant:
 
-// 201 response
-{ }
+```json
+{
+  "restaurant": { "type": "existing", "id": 1 },
+  "date": "2026-09-09",
+  "amountSpent": 27.45,
+  "rating": 4.5,
+  "notes": "Would return."
+}
+```
+
+or a new restaurant:
+
+```json
+{
+  "restaurant": {
+    "type": "new",
+    "name": "Noodle Lab",
+    "cuisine": "Taiwanese",
+    "address": "9 Test Kitchen Way"
+  },
+  "date": "2026-09-09",
+  "amountSpent": 27.45,
+  "rating": 4.5,
+  "notes": "Would return."
+}
+```
+
+Its `201` response is:
+
+```json
+{
+  "visit": { "id": 4, "restaurantId": 6, "date": "2026-09-09" },
+  "restaurant": { "id": 6, "name": "Noodle Lab" },
+  "restaurantCreated": true
+}
+```
+
+The abbreviated objects above contain all fields from the visit and restaurant
+shapes. `restaurantCreated` is `false` when normalized name/address matching
+reuses an existing restaurant.
+
+`PUT /api/visits/:id` accepts the visit fields without `restaurant`:
+
+```json
+{
+  "date": "2026-09-09",
+  "amountSpent": 29.95,
+  "rating": 5,
+  "notes": "Still would return."
+}
 ```
 
 ## Schema changes
 
-> Any migrations you added (`002_*.sql`, ...), new tables or columns, and
-> anything a reviewer needs to run beyond `./setup.sh`. Write "none" if there
-> were none.
+- `002_prevent_duplicate_restaurants.sql` adds a case-insensitive unique restaurant
+  identity on name plus normalized address. Migration 002 checks for existing
+  duplicates first and raises a clear error rather than silently discarding data.
+- `003_add_visit_rating.sql` adds `visits.rating NUMERIC(2,1)`, constrains it to
+  `0–5`, and backfills seeded visits from their restaurant rating. Both new
+  migrations are re-runnable through `npm run migrate`.
+- No extra setup is required beyond `./setup.sh`; its migration runner discovers
+  the new files automatically.
 
 ## How I verified this
 
-> How you checked your work - the happy paths _and_ the failures. `curl`
-> commands, a Postman collection, a scratch script, screenshots: whatever you
-> actually used. Paste the commands.
->
-> This is much faster for us to review than working it out ourselves, and it's
-> how you show you checked the edge cases.
-
-**Part A** - the contract table in CHALLENGE.md, every row including the error
-cases:
+From `client/`:
 
 ```bash
-# e.g.
-curl -i http://localhost:3000/api/restaurants          # 200 + array
-curl -i http://localhost:3000/api/restaurants/99999    # 404
-curl -i http://localhost:3000/api/restaurants/abc      # 404
-curl -i -X POST http://localhost:3000/api/restaurants \
+npm run migrate
+npm test
+npm run lint
+npm run build
+```
+
+The unit suite covers restaurant and visit parsing, normalization, malformed
+JSON, ID boundaries (including leading zeros), real/future dates, numeric
+precision and ranges, and nullable fields.
+
+I also exercised every route against Docker PostgreSQL, including valid,
+malformed, missing, and invalid inputs. Representative checks:
+
+```bash
+curl -i http://127.0.0.1:3000/api/restaurants
+curl -i http://127.0.0.1:3000/api/restaurants/abc
+curl -i -X POST http://127.0.0.1:3000/api/restaurants \
   -H 'Content-Type: application/json' \
-  -d '{"name":"Out Of Range","rating":6}'              # 400
+  -d '{"name":"Out Of Range","rating":6}'
+
+curl -i 'http://127.0.0.1:3000/api/visits?restaurantId=1'
+curl -i -X POST http://127.0.0.1:3000/api/visits \
+  -H 'Content-Type: application/json' \
+  -d '{"restaurant":{"type":"existing","id":1},"date":"2026-09-09","amountSpent":27.45,"rating":4.5,"notes":"Would return."}'
+curl -i -X PUT http://127.0.0.1:3000/api/visits/4 \
+  -H 'Content-Type: application/json' \
+  -d '{"date":"2026-09-09","amountSpent":29.95,"rating":5,"notes":"Still would return."}'
+curl -i -X DELETE http://127.0.0.1:3000/api/visits/4
 ```
 
-**Part B** - the equivalent cases for what you built:
-
-```bash
-
-```
+The live API pass included 30 assertions and restored the seed dataset
+afterward. I separately verified in the browser that create/edit/search flows
+persist, review cards render under the right restaurant, and summary totals
+recalculate.
 
 ## Known issues / what I'd do next
 
-> Anything broken, unfinished, or that you know is wrong. Being upfront here
-> costs you nothing and tells us a lot.
+There are no known broken challenge flows. This remains intentionally a
+single-user journal with an in-memory client view after initial load; concurrent
+changes made in another tab appear after refresh. At larger scale I would add
+authentication, pagination, cache revalidation, accessible focus trapping, and
+an automated database integration job.
