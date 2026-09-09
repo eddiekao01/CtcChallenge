@@ -1,10 +1,25 @@
 import { ApiError } from './errors';
 
+const POSTGRES_INTEGER_MAX = 2_147_483_647;
+
 export interface RestaurantInput {
   name: string;
   cuisine: string | null;
   address: string | null;
   rating: number | null;
+}
+
+export function parseRestaurantId(value: string): number {
+  if (!/^[1-9]\d*$/.test(value)) {
+    throw new ApiError(404, 'Restaurant not found');
+  }
+
+  const id = Number(value);
+  if (!Number.isSafeInteger(id) || id > POSTGRES_INTEGER_MAX) {
+    throw new ApiError(404, 'Restaurant not found');
+  }
+
+  return id;
 }
 
 function optionalString(value: unknown, field: string): string | null {

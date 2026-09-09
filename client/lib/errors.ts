@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { DatabaseError } from 'pg';
 
 type ApiErrorStatus = 400 | 404 | 409;
 
@@ -22,15 +23,9 @@ export class ApiError extends Error {
  *     return handleError(err);
  *   }
  *
- * This is a STUB. Right now it always returns a generic 500. A real
- * implementation would inspect the error (validation vs. not-found vs.
- * conflict vs. unexpected) and choose an appropriate status code and shape.
- *
- * This is task A3. The write endpoints from A2 can't return sensible 400s and
- * 404s while every failure funnels into a 500.
- *
- * TODO (A3): map known error types to proper status codes (400, 404, 409, ...)
- * TODO (A3): avoid leaking internal error details in responses
+ * Expected API errors keep their safe message and status. Malformed JSON is a
+ * 400. Unexpected failures are logged on the server and return a generic 500
+ * without exposing internal details.
  */
 export function handleError(err: unknown): NextResponse {
   if (err instanceof ApiError) {
@@ -42,6 +37,22 @@ export function handleError(err: unknown): NextResponse {
       { error: 'Request body must contain valid JSON' },
       { status: 400 }
     );
+  }
+
+  if (err instanceof DatabaseError) {
+    if (err.code === '23505') {
+      return NextResponse.json(
+        { error: 'Resource conflicts with existing data' },
+        { status: 409 }
+      );
+    }
+
+    if (err.code === '23503') {
+      return NextResponse.json(
+        { error: 'Operation conflicts with related data' },
+        { status: 409 }
+      );
+    }
   }
 
   console.error('Unhandled API error:', err);

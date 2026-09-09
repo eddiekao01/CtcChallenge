@@ -1,7 +1,37 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { DatabaseError } from 'pg';
 import { ApiError, handleError } from './errors';
-import { parseRestaurantInput } from './restaurantInput';
+import {
+  parseRestaurantId,
+  parseRestaurantInput,
+} from './restaurantInput';
+
+test('accepts positive PostgreSQL integer restaurant IDs', () => {
+  assert.equal(parseRestaurantId('1'), 1);
+  assert.equal(parseRestaurantId('2147483647'), 2_147_483_647);
+});
+
+const invalidIds = [
+  'abc',
+  '0',
+  '-1',
+  '1.5',
+  '1e2',
+  '0x10',
+  ' 7 ',
+  '+7',
+  '2147483648',
+];
+
+for (const id of invalidIds) {
+  test(`rejects invalid restaurant ID ${JSON.stringify(id)} with 404`, () => {
+    assert.throws(
+      () => parseRestaurantId(id),
+      (err: unknown) => err instanceof ApiError && err.status === 404
+    );
+  });
+}
 
 test('normalizes a valid restaurant body', () => {
   assert.deepEqual(
@@ -61,4 +91,38 @@ test('maps malformed JSON syntax errors to a safe 400 response', async () => {
   assert.deepEqual(await response.json(), {
     error: 'Request body must contain valid JSON',
   });
+});
+
+for (const [code, message] of [
+  ['23505', 'Resource conflicts with existing data'],
+  ['23503', 'Operation conflicts with related data'],
+] as const) {
+  test(`maps PostgreSQL ${code} conflicts to a safe 409 response`, async () => {
+    const err = new DatabaseError('sensitive database message', 0, 'error');
+    err.code = code;
+    err.detail = 'sensitive database detail';
+
+    const response = handleError(err);
+
+    assert.equal(response.status, 409);
+    assert.deepEqual(await response.json(), { error: message });
+  });
+}
+
+test('logs unexpected errors and returns a generic 500 response', async () => {
+  const originalConsoleError = console.error;
+  const logged: unknown[][] = [];
+  console.error = (...args: unknown[]) => logged.push(args);
+
+  try {
+    const response = handleError(new Error('sensitive internal failure'));
+
+    assert.equal(response.status, 500);
+    assert.deepEqual(await response.json(), {
+      error: 'Internal Server Error',
+    });
+    assert.equal(logged.length, 1);
+  } finally {
+    console.error = originalConsoleError;
+  }
 });
