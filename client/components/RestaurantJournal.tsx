@@ -420,7 +420,7 @@ export function RestaurantJournal({
         <div className="flex flex-col justify-between gap-6 md:flex-row md:items-end">
           <div className="max-w-2xl">
             <p className="mb-3 inline-flex rounded-full bg-white/10 px-3 py-1 text-xs font-bold uppercase tracking-[0.16em] text-orange-200">
-              Brennen&apos;s personal food desk
+              BRENNELP
             </p>
             <h2 className="font-brand text-3xl font-black leading-tight tracking-[-0.04em] sm:text-4xl">
               One man. Many restaurants.
