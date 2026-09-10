@@ -8,7 +8,7 @@
  * The shapes these helpers return live in `lib/types.ts`, shared with the
  * handlers that produce them.
  */
-import type { Restaurant } from './types';
+import type { Restaurant, Visit } from './types';
 
 // We read a base URL from the environment because Server Components fetch on
 // the server, where relative URLs don't resolve - so we need an absolute origin.
@@ -16,22 +16,25 @@ import type { Restaurant } from './types';
 export const API_URL =
   process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
 
-/**
- * Fetch every restaurant from the API.
- *
- * NOTE: this is a bare fetch with no error handling. It does not check the
- * response status and it does not catch network failures - callers get whatever
- * `res.json()` produces, including on a 500.
- */
-export async function getRestaurants(): Promise<Restaurant[]> {
-  const res = await fetch(`${API_URL}/api/restaurants`, { cache: 'no-store' });
-  return res.json();
+async function getJson<T>(path: string): Promise<T> {
+  const response = await fetch(`${API_URL}${path}`, { cache: 'no-store' });
+  if (!response.ok) {
+    throw new Error(`API request failed with status ${response.status}`);
+  }
+  return response.json() as Promise<T>;
 }
 
-/**
- * Fetch a single restaurant by id.
- */
+/** Fetch every restaurant from the API. */
+export async function getRestaurants(): Promise<Restaurant[]> {
+  return getJson<Restaurant[]>('/api/restaurants');
+}
+
+/** Fetch a single restaurant by id. */
 export async function getRestaurant(id: number | string): Promise<Restaurant> {
-  const res = await fetch(`${API_URL}/api/restaurants/${id}`, { cache: 'no-store' });
-  return res.json();
+  return getJson<Restaurant>(`/api/restaurants/${id}`);
+}
+
+/** Fetch every visit/review, newest first. */
+export async function getVisits(): Promise<Visit[]> {
+  return getJson<Visit[]>('/api/visits');
 }
