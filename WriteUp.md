@@ -173,3 +173,5 @@ recalculate.
 
 > Anything broken, unfinished, or that you know is wrong. Being upfront here
 > costs you nothing and tells us a lot.
+
+Free-form address formatting can still create duplicate restaurants, and changes made on another device are not immediately visible. I would also test accessibility and empty, loading, and error states more systematically before considering the UI production-ready. I did not encounter any outstanding migration or API-route failures during the testing described below.
